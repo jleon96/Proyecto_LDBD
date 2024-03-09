@@ -4,6 +4,7 @@ package Modelo;
  *
  * @author Juan Leon
  */
-public class Cliente {
+public class Cliente extends Persona{
+    
     
 }
