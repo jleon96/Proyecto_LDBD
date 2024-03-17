@@ -238,6 +238,130 @@ BEGIN
     COMMIT;
 END eliminar_venta;
 
+-- Procedimiento para crear un nuevo usuario
+CREATE OR REPLACE PROCEDURE CrearUsuario(
+    p_id_Usuario IN NUMBER,
+    p_nombre IN VARCHAR2,
+    p_contrasenna IN VARCHAR2,
+    p_id_Rol IN NUMBER
+)
+AS
+BEGIN
+    INSERT INTO USUARIOS (id_Usuario, nombre, contrasenna, id_Rol)
+    VALUES (p_id_Usuario, p_nombre, p_contrasenna, p_id_Rol);
+    COMMIT;
+END CrearUsuario;
+
+
+-- Procedimiento para leer un usuario por su ID
+CREATE OR REPLACE PROCEDURE LeerUsuario(
+    p_id_Usuario IN NUMBER,
+    o_nombre OUT VARCHAR2,
+    o_contrasenna OUT VARCHAR2,
+    o_id_Rol OUT NUMBER
+)
+AS
+BEGIN
+    SELECT nombre, contrasenna, id_Rol
+    INTO o_nombre, o_contrasenna, o_id_Rol
+    FROM USUARIOS
+    WHERE id_Usuario = p_id_Usuario;
+END LeerUsuario;
+
+
+-- Procedimiento para actualizar la informaci n de un usuario
+CREATE OR REPLACE PROCEDURE ActualizarUsuario(
+    p_id_Usuario IN NUMBER,
+    p_nombre IN VARCHAR2,
+    p_contrasenna IN VARCHAR2,
+    p_id_Rol IN NUMBER
+)
+AS
+BEGIN
+    UPDATE USUARIOS
+    SET nombre = p_nombre,
+        contrasenna = p_contrasenna,
+        id_Rol = p_id_Rol
+    WHERE id_Usuario = p_id_Usuario;
+    COMMIT;
+END ActualizarUsuario;
+
+-- Procedimiento para eliminar un usuario por su ID
+CREATE OR REPLACE PROCEDURE EliminarUsuario(
+    p_id_Usuario IN NUMBER
+)
+AS
+BEGIN
+    DELETE FROM USUARIOS
+    WHERE id_Usuario = p_id_Usuario;
+    COMMIT;
+END EliminarUsuario;
+
+-- Procedimiento para crear un nuevo detalle de venta
+CREATE OR REPLACE PROCEDURE CrearVentaDetalle(
+    p_id_VentaDetalle IN NUMBER,
+    p_id_Venta IN NUMBER,
+    p_id_Producto IN NUMBER,
+    p_cantidad IN NUMBER,
+    p_precio_unitario IN NUMBER
+)
+AS
+BEGIN
+    INSERT INTO VENTAS_DETALLE (id_VentaDetalle, id_Venta, id_Producto, cantidad, precio_unitario)
+    VALUES (p_id_VentaDetalle, p_id_Venta, p_id_Producto, p_cantidad, p_precio_unitario);
+    COMMIT;
+END CrearVentaDetalle;
+
+
+-- Procedimiento para leer un detalle de venta por su ID
+CREATE OR REPLACE PROCEDURE LeerVentaDetalle(
+    p_id_VentaDetalle IN NUMBER,
+    o_id_Venta OUT NUMBER,
+    o_id_Producto OUT NUMBER,
+    o_cantidad OUT NUMBER,
+    o_precio_unitario OUT NUMBER
+)
+AS
+BEGIN
+    SELECT id_Venta, id_Producto, cantidad, precio_unitario
+    INTO o_id_Venta, o_id_Producto, o_cantidad, o_precio_unitario
+    FROM VENTAS_DETALLE
+    WHERE id_VentaDetalle = p_id_VentaDetalle;
+END LeerVentaDetalle;
+
+
+-- Procedimiento para actualizar la informaci n de un detalle de venta
+CREATE OR REPLACE PROCEDURE ActualizarVentaDetalle(
+    p_id_VentaDetalle IN NUMBER,
+    p_id_Venta IN NUMBER,
+    p_id_Producto IN NUMBER,
+    p_cantidad IN NUMBER,
+    p_precio_unitario IN NUMBER
+)
+AS
+BEGIN
+    UPDATE VENTAS_DETALLE
+    SET id_Venta = p_id_Venta,
+        id_Producto = p_id_Producto,
+        cantidad = p_cantidad,
+        precio_unitario = p_precio_unitario
+    WHERE id_VentaDetalle = p_id_VentaDetalle;
+    COMMIT;
+END ActualizarVentaDetalle;
+
+
+-- Procedimiento para eliminar un detalle de venta por su ID
+CREATE OR REPLACE PROCEDURE EliminarVentaDetalle(
+    p_id_VentaDetalle IN NUMBER
+)
+AS
+BEGIN
+    DELETE FROM VENTAS_DETALLE
+    WHERE id_VentaDetalle = p_id_VentaDetalle;
+    COMMIT;
+END EliminarVentaDetalle;
+
+
 -- Vistas.
 
 CREATE OR REPLACE VIEW VISTA_PROVEEDORES_SUMINISTRO AS
@@ -246,6 +370,13 @@ SELECT P.id_Proveedor, P.nombre AS nombre_proveedor, P.direccion AS direccion_pr
 FROM PROVEEDORES P
 LEFT JOIN INGRESO_MERCADERIA IM ON P.id_Proveedor = IM.id_Proveedor
 GROUP BY P.id_Proveedor, P.nombre, P.direccion, P.telefono;
+
+CREATE OR REPLACE VIEW VISTA_PRODUCTOS_PRECIOS AS
+SELECT P.id_Producto, P.nombre AS nombre_producto, P.cantidad, P.costo, C.descripcion AS categoria, T.ubicacion_Tienda AS ubicacion_tienda
+FROM PRODUCTOS P
+LEFT JOIN CATEGORIA C ON P.id_Categoria = C.id_Categoria
+LEFT JOIN TIENDA T ON P.id_Tienda = T.id_Tienda;
+
 
 
 -- Cursores.
@@ -273,6 +404,29 @@ BEGIN
         WHERE motivo = motivo;
 END cursor_devoluciones_por_motivo;
 
+CREATE OR REPLACE PROCEDURE cursor_promedio_costos_productos(
+    resultado_cursor OUT SYS_REFCURSOR
+)
+AS
+BEGIN
+    OPEN resultado_cursor FOR
+        SELECT C.descripcion AS categoria, AVG(P.costo) AS promedio_costo
+        FROM PRODUCTOS P
+        JOIN CATEGORIA C ON P.id_Categoria = C.id_Categoria
+        GROUP BY C.descripcion;
+END cursor_promedio_costos_productos;
+
+CREATE OR REPLACE PROCEDURE cursor_contar_productos_tienda(
+    resultado_cursor OUT SYS_REFCURSOR
+)
+AS
+BEGIN
+    OPEN resultado_cursor FOR
+        SELECT T.ubicacion_Tienda AS ubicacion_tienda, COUNT(*) AS cantidad_productos
+        FROM PRODUCTOS P
+        JOIN TIENDA T ON P.id_Tienda = T.id_Tienda
+        GROUP BY T.ubicacion_Tienda;
+END cursor_contar_productos_tienda;
 
 
 -- Funciones.
@@ -310,6 +464,25 @@ BEGIN
     RETURN total_devoluciones;
 END calcular_total_devoluciones_por_motivo;
 
+CREATE OR REPLACE FUNCTION obtener_promedio_costos_categoria
+RETURN SYS_REFCURSOR
+AS
+  resultado_cursor SYS_REFCURSOR;
+BEGIN
+  cursor_promedio_costos_productos(resultado_cursor);
+  RETURN resultado_cursor;
+END obtener_promedio_costos_categoria;
+
+CREATE OR REPLACE FUNCTION contar_productos_tienda
+RETURN SYS_REFCURSOR
+AS
+  resultado_cursor SYS_REFCURSOR;
+BEGIN
+  cursor_contar_productos_tienda(resultado_cursor);
+  RETURN resultado_cursor;
+END contar_productos_tienda;
+
+
 -- Triggers
 
 CREATE OR REPLACE TRIGGER actualizar_stock_venta
@@ -320,5 +493,28 @@ BEGIN
     SET cantidad = cantidad - :NEW.cantidad
     WHERE id_Producto = :NEW.id_Producto;
 END;
+
+CREATE OR REPLACE TRIGGER actualizar_total_pagado
+AFTER INSERT OR DELETE ON VENTAS_DETALLE
+FOR EACH ROW
+BEGIN
+    UPDATE VENTAS
+    SET total_Pagado = (SELECT SUM(cantidad * precio_unitario) FROM VENTAS_DETALLE WHERE id_Venta = :NEW.id_Venta)
+    WHERE id_Venta = :NEW.id_Venta;
+END;
+
+
+CREATE OR REPLACE TRIGGER evitar_eliminacion_proveedores
+BEFORE DELETE ON PROVEEDORES
+FOR EACH ROW
+DECLARE
+    cantidad_ingresos NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO cantidad_ingresos FROM INGRESO_MERCADERIA WHERE id_Proveedor = :OLD.id_Proveedor;
+    IF cantidad_ingresos > 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'No se puede eliminar este proveedor porque tiene ingresos de mercader a asociados.');
+    END IF;
+END;
+
 ----------------------------------------------------------
 ----------------------------------------------------------
