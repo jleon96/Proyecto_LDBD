@@ -380,7 +380,7 @@ EXCEPTION
   WHEN OTHERS THEN
     ROLLBACK;
     RAISE;
-END sp_insert_cliente;
+END;
 
 --LEER
 CREATE OR REPLACE PROCEDURE sp_leer_cliente(
@@ -405,7 +405,7 @@ EXCEPTION
     o_telefono := NULL;
   WHEN OTHERS THEN
     RAISE;
-END sp_read_cliente;
+END;
 
 --ACTUALIZAR
 CREATE OR REPLACE PROCEDURE sp_actualizar_cliente(
@@ -429,7 +429,7 @@ EXCEPTION
   WHEN OTHERS THEN
     ROLLBACK;
     RAISE;
-END sp_update_cliente;
+END;
 
 --BORRAR
 CREATE OR REPLACE PROCEDURE sp_borrar_cliente(
@@ -443,7 +443,7 @@ EXCEPTION
   WHEN OTHERS THEN
     ROLLBACK;
     RAISE;
-END sp_delete_cliente;
+END;
 --------------------------------------------------------------
 --------------------------------------------------------------
 --------------------------------------------------------------
@@ -608,13 +608,13 @@ BEGIN
   RETURN resultado_cursor;
 END contar_productos_tienda;
 
-CREATE OR REPLACE FUNCTION Reporte_Ventas_Mensual (mes INT, año INT)
+CREATE OR REPLACE FUNCTION Reporte_Ventas_Mensual (mes INT, anno INT)
 RETURN VARCHAR2
 AS
     reporte VARCHAR2(4000);
 BEGIN
     -- Inicializamos el reporte
-    reporte := 'Informe de Ventas para ' || TO_CHAR(mes, 'FM00') || '/' || TO_CHAR(año) || ':' || CHR(10);
+    reporte := 'Informe de Ventas para ' || TO_CHAR(mes, 'FM00') || '/' || TO_CHAR(anno) || ':' || CHR(10);
 
     -- Loop a través de cada día del mes
     FOR dia IN 1..31 LOOP
@@ -623,12 +623,12 @@ BEGIN
         INTO total_ventas
         FROM VENTAS
         WHERE EXTRACT(MONTH FROM fecha) = mes
-        AND EXTRACT(YEAR FROM fecha) = año
+        AND EXTRACT(YEAR FROM fecha) = anno
         AND EXTRACT(DAY FROM fecha) = dia;
 
         -- Agregamos el total de ventas al reporte
         IF total_ventas IS NOT NULL THEN
-            reporte := reporte || TO_CHAR(dia, 'FM00') || '/' || TO_CHAR(mes, 'FM00') || '/' || TO_CHAR(año) || ': ' || total_ventas || CHR(10);
+            reporte := reporte || TO_CHAR(dia, 'FM00') || '/' || TO_CHAR(mes, 'FM00') || '/' || TO_CHAR(anno) || ': ' || total_ventas || CHR(10);
         END IF;
     END LOOP;
 
