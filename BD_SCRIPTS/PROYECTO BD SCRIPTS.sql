@@ -377,7 +377,38 @@ FROM PRODUCTOS P
 LEFT JOIN CATEGORIA C ON P.id_Categoria = C.id_Categoria
 LEFT JOIN TIENDA T ON P.id_Tienda = T.id_Tienda;
 
+CREATE VIEW Detalles_Ventas AS
+SELECT V.id_Venta, 
+       C.nombre AS nombre_cliente,
+       C.apellido1 AS apellido_cliente,
+       P.nombre AS nombre_producto,
+       T.ubicacion_Tienda AS ubicacion_tienda,
+       V.cantidad,
+       V.total_Pagado
+FROM VENTAS V
+JOIN CLIENTES C ON V.id_Cliente = C.id_Cliente
+JOIN PRODUCTOS P ON V.id_Producto = P.id_Producto
+JOIN TIENDA T ON V.id_Tienda = T.id_Tienda;
 
+CREATE VIEW Inventario_Productos AS
+SELECT P.id_Producto,
+       P.nombre,
+       P.cantidad AS cantidad_disponible,
+       IM.fecha AS fecha_ingreso
+FROM PRODUCTOS P
+JOIN (
+    SELECT id_Producto, MAX(fecha) AS fecha
+    FROM INGRESO_MERCADERIA
+    GROUP BY id_Producto
+) IM ON P.id_Producto = IM.id_Producto;
+
+CREATE VIEW Devoluciones AS
+SELECT D.id_Devolucion,
+       D.producto,
+       D.motivo,
+       V.id_Venta
+FROM DEVOLUCIONES D
+JOIN VENTAS V ON D.id_Venta = V.id_Venta;
 
 -- Cursores.
 
@@ -482,6 +513,59 @@ BEGIN
   RETURN resultado_cursor;
 END contar_productos_tienda;
 
+CREATE OR REPLACE FUNCTION Reporte_Ventas_Mensual (mes INT, año INT)
+RETURN VARCHAR2
+AS
+    reporte VARCHAR2(4000);
+BEGIN
+    -- Inicializamos el reporte
+    reporte := 'Informe de Ventas para ' || TO_CHAR(mes, 'FM00') || '/' || TO_CHAR(año) || ':' || CHR(10);
+
+    -- Loop a través de cada día del mes
+    FOR dia IN 1..31 LOOP
+        -- Obtenemos el total de ventas para el día actual
+        SELECT SUM(total_Pagado)
+        INTO total_ventas
+        FROM VENTAS
+        WHERE EXTRACT(MONTH FROM fecha) = mes
+        AND EXTRACT(YEAR FROM fecha) = año
+        AND EXTRACT(DAY FROM fecha) = dia;
+
+        -- Agregamos el total de ventas al reporte
+        IF total_ventas IS NOT NULL THEN
+            reporte := reporte || TO_CHAR(dia, 'FM00') || '/' || TO_CHAR(mes, 'FM00') || '/' || TO_CHAR(año) || ': ' || total_ventas || CHR(10);
+        END IF;
+    END LOOP;
+
+    RETURN reporte;
+END;
+
+CREATE OR REPLACE FUNCTION Promedio_Ventas_Diarias (mes INT, año INT)
+RETURN NUMBER
+AS
+    total_ventas NUMBER;
+    dias_mes NUMBER;
+    promedio NUMBER;
+BEGIN
+    -- Calculamos el total de ventas para el mes
+    SELECT SUM(total_Pagado)
+    INTO total_ventas
+    FROM VENTAS
+    WHERE EXTRACT(MONTH FROM fecha) = mes
+    AND EXTRACT(YEAR FROM fecha) = año;
+
+    -- Calculamos el número de días en el mes
+    dias_mes := EXTRACT(DAY FROM LAST_DAY(TO_DATE(mes || '-' || año, 'MM-YYYY')));
+
+    -- Calculamos el promedio de ventas diarias
+    IF total_ventas IS NOT NULL AND dias_mes <> 0 THEN
+        promedio := total_ventas / dias_mes;
+    ELSE
+        promedio := 0;
+    END IF;
+
+    RETURN promedio;
+END;
 
 -- Triggers
 
