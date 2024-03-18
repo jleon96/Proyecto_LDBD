@@ -21,7 +21,7 @@ CREATE TABLE TIENDA
   ubicacion_Tienda VARCHAR2(50) NOT NULL
 );
 
--- CategorÃ­a
+-- Categoria
 CREATE TABLE CATEGORIA
 (
   id_Categoria NUMBER PRIMARY KEY NOT NULL,
@@ -60,7 +60,7 @@ CREATE TABLE PROVEEDORES
   telefono NUMBER NOT NULL
 );
 
--- Ingreso MercaderÃ­a
+-- Ingreso Mercaderia
 CREATE TABLE INGRESO_MERCADERIA
 (
   id_Ingreso NUMBER PRIMARY KEY NOT NULL,
@@ -96,7 +96,7 @@ CREATE TABLE VENTAS
   FOREIGN KEY (id_Cliente) REFERENCES CLIENTES(id_Cliente)
 );
 
--- Ventas Detalle (nueva tabla para manejar mÃºltiples productos en una venta)
+-- Ventas Detalle (nueva tabla para manejar multiples productos en una venta)
 CREATE TABLE VENTAS_DETALLE
 (
   id_VentaDetalle NUMBER PRIMARY KEY NOT NULL,
@@ -269,7 +269,7 @@ BEGIN
 END LeerUsuario;
 
 
--- Procedimiento para actualizar la informaci n de un usuario
+-- Procedimiento para actualizar la informacion de un usuario
 CREATE OR REPLACE PROCEDURE ActualizarUsuario(
     p_id_Usuario IN NUMBER,
     p_nombre IN VARCHAR2,
@@ -361,6 +361,93 @@ BEGIN
     COMMIT;
 END EliminarVentaDetalle;
 
+/*Procedimientos almacenados para clientes (CRUD)*/
+
+--INSERTAR
+CREATE OR REPLACE PROCEDURE sp_insertar_cliente(
+  p_id_cliente IN CLIENTES.id_Cliente%TYPE,
+  p_nombre IN CLIENTES.nombre%TYPE,
+  p_apellido1 IN CLIENTES.apellido1%TYPE,
+  p_apellido2 IN CLIENTES.apellido2%TYPE,
+  p_correo IN CLIENTES.correo%TYPE,
+  p_telefono IN CLIENTES.telefono%TYPE)
+IS
+BEGIN
+  INSERT INTO CLIENTES(id_Cliente, nombre, apellido1, apellido2, correo, telefono)
+  VALUES (p_id_cliente, p_nombre, p_apellido1, p_apellido2, p_correo, p_telefono);
+  COMMIT;
+EXCEPTION
+  WHEN OTHERS THEN
+    ROLLBACK;
+    RAISE;
+END sp_insert_cliente;
+
+--LEER
+CREATE OR REPLACE PROCEDURE sp_leer_cliente(
+  p_id_cliente IN CLIENTES.id_Cliente%TYPE,
+  o_nombre OUT CLIENTES.nombre%TYPE,
+  o_apellido1 OUT CLIENTES.apellido1%TYPE,
+  o_apellido2 OUT CLIENTES.apellido2%TYPE,
+  o_correo OUT CLIENTES.correo%TYPE,
+  o_telefono OUT CLIENTES.telefono%TYPE)
+IS
+BEGIN
+  SELECT nombre, apellido1, apellido2, correo, telefono
+  INTO o_nombre, o_apellido1, o_apellido2, o_correo, o_telefono
+  FROM CLIENTES
+  WHERE id_Cliente = p_id_cliente;
+EXCEPTION
+  WHEN NO_DATA_FOUND THEN
+    o_nombre := NULL;
+    o_apellido1 := NULL;
+    o_apellido2 := NULL;
+    o_correo := NULL;
+    o_telefono := NULL;
+  WHEN OTHERS THEN
+    RAISE;
+END sp_read_cliente;
+
+--ACTUALIZAR
+CREATE OR REPLACE PROCEDURE sp_actualizar_cliente(
+  p_id_cliente IN CLIENTES.id_Cliente%TYPE,
+  p_nombre IN CLIENTES.nombre%TYPE,
+  p_apellido1 IN CLIENTES.apellido1%TYPE,
+  p_apellido2 IN CLIENTES.apellido2%TYPE,
+  p_correo IN CLIENTES.correo%TYPE,
+  p_telefono IN CLIENTES.telefono%TYPE)
+IS
+BEGIN
+  UPDATE CLIENTES
+  SET nombre = p_nombre,
+      apellido1 = p_apellido1,
+      apellido2 = p_apellido2,
+      correo = p_correo,
+      telefono = p_telefono
+  WHERE id_Cliente = p_id_cliente;
+  COMMIT;
+EXCEPTION
+  WHEN OTHERS THEN
+    ROLLBACK;
+    RAISE;
+END sp_update_cliente;
+
+--BORRAR
+CREATE OR REPLACE PROCEDURE sp_borrar_cliente(
+  p_id_cliente IN CLIENTES.id_Cliente%TYPE)
+IS
+BEGIN
+  DELETE FROM CLIENTES
+  WHERE id_Cliente = p_id_cliente;
+  COMMIT;
+EXCEPTION
+  WHEN OTHERS THEN
+    ROLLBACK;
+    RAISE;
+END sp_delete_cliente;
+--------------------------------------------------------------
+--------------------------------------------------------------
+--------------------------------------------------------------
+--------------------------------------------------------------
 
 -- Vistas.
 
@@ -410,6 +497,10 @@ SELECT D.id_Devolucion,
 FROM DEVOLUCIONES D
 JOIN VENTAS V ON D.id_Venta = V.id_Venta;
 
+--------------------------------------------------------------
+--------------------------------------------------------------
+--------------------------------------------------------------
+--------------------------------------------------------------
 -- Cursores.
 
 CREATE OR REPLACE PROCEDURE cursor_total_ventas_cliente(
@@ -459,6 +550,10 @@ BEGIN
         GROUP BY T.ubicacion_Tienda;
 END cursor_contar_productos_tienda;
 
+--------------------------------------------------------------
+--------------------------------------------------------------
+--------------------------------------------------------------
+--------------------------------------------------------------
 
 -- Funciones.
 
@@ -566,6 +661,56 @@ BEGIN
 
     RETURN promedio;
 END;
+
+/*Funcion para obtener el correo de un cliente por medio de su ID*/
+
+CREATE OR REPLACE FUNCTION fn_get_cliente_email(p_id_Cliente IN CLIENTES.id_Cliente%TYPE)
+RETURN CLIENTES.correo%TYPE
+AS
+  v_correo CLIENTES.correo%TYPE;
+BEGIN
+  SELECT correo INTO v_correo
+  FROM CLIENTES
+  WHERE id_Cliente = p_id_Cliente;
+
+  RETURN v_correo;
+EXCEPTION
+  WHEN NO_DATA_FOUND THEN
+    RETURN NULL;
+END;
+
+/*Funcion para verificar la existencia de un proveedor*/
+
+CREATE OR REPLACE FUNCTION fn_existe_proveedor(p_id_Proveedor IN PROVEEDORES.id_Proveedor%TYPE)
+RETURN NUMBER
+AS
+  v_existe NUMBER(1);
+BEGIN
+  SELECT COUNT(*)
+  INTO v_existe
+  FROM PROVEEDORES
+  WHERE id_Proveedor = p_id_Proveedor;
+
+  IF v_existe > 0 THEN
+  DBMS_OUTPUT.PUT_LINE('Proveedor si existe en la base de datos');
+    RETURN 1; -- Proveedor existe
+    
+  ELSE
+  DBMS_OUTPUT.PUT_LINE('Proveedor no existe en la base de datos');
+    RETURN 0; -- Proveedor no existe
+    
+  END IF;
+EXCEPTION
+  WHEN OTHERS THEN
+    -- En caso de error, se podría retornar un valor específico o lanzar la excepción
+    RAISE;
+END fn_existe_proveedor;
+
+
+--------------------------------------------------------------
+--------------------------------------------------------------
+--------------------------------------------------------------
+--------------------------------------------------------------
 
 -- Triggers
 
