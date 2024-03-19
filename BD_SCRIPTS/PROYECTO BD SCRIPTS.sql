@@ -747,3 +747,10 @@ END;
 
 ----------------------------------------------------------
 ----------------------------------------------------------
+
+--INSERTS
+
+insert into clientes
+values (1, 'Diego','Leon', 'Leon', ' jleon@ufide.com', 86307138);
+
+select * from clientes
