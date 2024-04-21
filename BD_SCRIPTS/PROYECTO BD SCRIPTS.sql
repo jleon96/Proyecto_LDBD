@@ -565,38 +565,21 @@ FROM PRODUCTOS P
 LEFT JOIN CATEGORIA C ON P.id_Categoria = C.id_Categoria
 LEFT JOIN TIENDA T ON P.id_Tienda = T.id_Tienda;
 
-CREATE VIEW Detalles_Ventas AS
-SELECT V.id_Venta, 
-       C.nombre AS nombre_cliente,
-       C.apellido1 AS apellido_cliente,
-       P.nombre AS nombre_producto,
-       T.ubicacion_Tienda AS ubicacion_tienda,
-       V.cantidad,
-       V.total_Pagado
-FROM VENTAS V
-JOIN CLIENTES C ON V.id_Cliente = C.id_Cliente
-JOIN PRODUCTOS P ON V.id_Producto = P.id_Producto
-JOIN TIENDA T ON V.id_Tienda = T.id_Tienda;
 
-CREATE VIEW Inventario_Productos AS
-SELECT P.id_Producto,
-       P.nombre,
-       P.cantidad AS cantidad_disponible,
-       IM.fecha AS fecha_ingreso
-FROM PRODUCTOS P
-JOIN (
-    SELECT id_Producto, MAX(fecha) AS fecha
-    FROM INGRESO_MERCADERIA
-    GROUP BY id_Producto
-) IM ON P.id_Producto = IM.id_Producto;
+CREATE OR REPLACE VIEW VISTA_INGRESOS_POR_PROVEEDOR AS
+SELECT PR.id_Proveedor, PR.nombre AS nombre_proveedor, IM.id_Ingreso, IM.fecha, IM.descripcion
+FROM PROVEEDORES PR
+INNER JOIN INGRESO_MERCADERIA IM ON PR.id_Proveedor = IM.id_Proveedor;
 
-CREATE VIEW Devoluciones AS
-SELECT D.id_Devolucion,
-       D.producto,
-       D.motivo,
-       V.id_Venta
-FROM DEVOLUCIONES D
-JOIN VENTAS V ON D.id_Venta = V.id_Venta;
+CREATE OR REPLACE VIEW VISTA_PRODUCTOS_AGOTADOS AS
+SELECT id_Producto, nombre AS nombre_producto, cantidad
+FROM PRODUCTOS
+WHERE cantidad = 0;
+
+CREATE OR REPLACE VIEW VISTA_USUARIOS_Y_ROLES AS
+SELECT U.id_Usuario, U.nombre AS nombre_usuario, UR.descripcion AS rol
+FROM USUARIOS U
+LEFT JOIN USER_ROLES UR ON U.id_Rol = UR.id_Rol;
 
 --------------------------------------------------------------
 --------------------------------------------------------------
