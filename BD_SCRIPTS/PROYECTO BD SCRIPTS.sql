@@ -571,15 +571,51 @@ SELECT PR.id_Proveedor, PR.nombre AS nombre_proveedor, IM.id_Ingreso, IM.fecha, 
 FROM PROVEEDORES PR
 INNER JOIN INGRESO_MERCADERIA IM ON PR.id_Proveedor = IM.id_Proveedor;
 
+
 CREATE OR REPLACE VIEW VISTA_PRODUCTOS_AGOTADOS AS
 SELECT id_Producto, nombre AS nombre_producto, cantidad
 FROM PRODUCTOS
 WHERE cantidad = 0;
 
+
 CREATE OR REPLACE VIEW VISTA_USUARIOS_Y_ROLES AS
 SELECT U.id_Usuario, U.nombre AS nombre_usuario, UR.descripcion AS rol
 FROM USUARIOS U
 LEFT JOIN USER_ROLES UR ON U.id_Rol = UR.id_Rol;
+
+
+CREATE OR REPLACE VIEW VISTA_PRODUCTOS_POR_CATEGORIA AS
+SELECT P.id_Producto, P.nombre AS nombre_producto, P.cantidad, P.costo, C.descripcion AS categoria
+FROM PRODUCTOS P
+INNER JOIN CATEGORIA C ON P.id_Categoria = C.id_Categoria;
+
+
+CREATE OR REPLACE VIEW VISTA_USUARIOS_CON_ROL AS
+SELECT U.id_Usuario, U.nombre AS nombre_usuario, UR.descripcion AS rol
+FROM USUARIOS U
+LEFT JOIN USER_ROLES UR ON U.id_Rol = UR.id_Rol;
+
+
+CREATE OR REPLACE VIEW VISTA_PRODUCTOS_MAS_VENDIDOS AS
+SELECT VD.id_Producto, P.nombre AS nombre_producto, SUM(VD.cantidad) AS cantidad_vendida
+FROM VENTAS_DETALLE VD
+INNER JOIN PRODUCTOS P ON VD.id_Producto = P.id_Producto
+GROUP BY VD.id_Producto, P.nombre
+ORDER BY cantidad_vendida DESC;
+
+
+CREATE OR REPLACE VIEW VISTA_CLIENTES_MAYOR_GASTO AS
+SELECT V.id_Cliente, CONCAT(C.nombre, ' ', C.apellido1, ' ', C.apellido2) AS nombre_cliente, SUM(V.total_Pagado) AS total_gastado
+FROM VENTAS V
+INNER JOIN CLIENTES C ON V.id_Cliente = C.id_Cliente
+GROUP BY V.id_Cliente, C.nombre, C.apellido1, C.apellido2
+ORDER BY total_gastado DESC;
+
+
+CREATE OR REPLACE VIEW VISTA_ESTADO_PRODUCTOS_POR_TIENDA AS
+SELECT P.id_Producto, P.nombre AS nombre_producto, P.cantidad, P.estado, T.ubicacion_Tienda AS ubicacion_tienda
+FROM PRODUCTOS P
+INNER JOIN TIENDA T ON P.id_Tienda = T.id_Tienda;
 
 --------------------------------------------------------------
 --------------------------------------------------------------
@@ -673,6 +709,169 @@ BEGIN
         JOIN CATEGORIA C ON P.id_Categoria = C.id_Categoria
         GROUP BY C.descripcion;
 END cursor_promedio_precios_categoria;
+
+CREATE OR REPLACE PROCEDURE cursor_insertar_tienda(
+    p_id_tienda IN TIENDA.id_Tienda%TYPE,
+    p_ubicacion IN TIENDA.ubicacion_Tienda%TYPE,
+    resultado_cursor OUT SYS_REFCURSOR
+)
+AS
+BEGIN
+    INSERT INTO TIENDA (id_Tienda, ubicacion_Tienda)
+    VALUES (p_id_tienda, p_ubicacion);
+    COMMIT;
+
+    OPEN resultado_cursor FOR
+        SELECT 'Tienda insertada correctamente' AS mensaje FROM DUAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        OPEN resultado_cursor FOR
+            SELECT 'Error al insertar la tienda' AS mensaje FROM DUAL;
+END cursor_insertar_tienda;
+
+
+CREATE OR REPLACE PROCEDURE cursor_leer_tienda(
+    p_id_tienda IN TIENDA.id_Tienda%TYPE,
+    resultado_cursor OUT SYS_REFCURSOR
+)
+AS
+BEGIN
+    OPEN resultado_cursor FOR
+        SELECT ubicacion_Tienda
+        FROM TIENDA
+        WHERE id_Tienda = p_id_tienda;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        OPEN resultado_cursor FOR
+            SELECT 'No se encontró la tienda' AS mensaje FROM DUAL;
+    WHEN OTHERS THEN
+        RAISE;
+END cursor_leer_tienda;
+
+
+CREATE OR REPLACE PROCEDURE cursor_actualizar_tienda(
+    p_id_tienda IN TIENDA.id_Tienda%TYPE,
+    p_ubicacion IN TIENDA.ubicacion_Tienda%TYPE,
+    resultado_cursor OUT SYS_REFCURSOR
+)
+AS
+BEGIN
+    UPDATE TIENDA
+    SET ubicacion_Tienda = p_ubicacion
+    WHERE id_Tienda = p_id_tienda;
+    COMMIT;
+
+    OPEN resultado_cursor FOR
+        SELECT 'Tienda actualizada correctamente' AS mensaje FROM DUAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        OPEN resultado_cursor FOR
+            SELECT 'Error al actualizar la tienda' AS mensaje FROM DUAL;
+END cursor_actualizar_tienda;
+
+
+CREATE OR REPLACE PROCEDURE cursor_eliminar_tienda(
+    p_id_tienda IN TIENDA.id_Tienda%TYPE,
+    resultado_cursor OUT SYS_REFCURSOR
+)
+AS
+BEGIN
+    DELETE FROM TIENDA
+    WHERE id_Tienda = p_id_tienda;
+    COMMIT;
+
+    OPEN resultado_cursor FOR
+        SELECT 'Tienda eliminada correctamente' AS mensaje FROM DUAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        OPEN resultado_cursor FOR
+            SELECT 'Error al eliminar la tienda' AS mensaje FROM DUAL;
+END cursor_eliminar_tienda;
+
+
+CREATE OR REPLACE PROCEDURE cursor_insertar_categoria(
+    p_id_categoria IN CATEGORIA.id_Categoria%TYPE,
+    p_descripcion IN CATEGORIA.descripcion%TYPE,
+    resultado_cursor OUT SYS_REFCURSOR
+)
+AS
+BEGIN
+    INSERT INTO CATEGORIA (id_Categoria, descripcion)
+    VALUES (p_id_categoria, p_descripcion);
+    COMMIT;
+
+    OPEN resultado_cursor FOR
+        SELECT 'Categoría insertada correctamente' AS mensaje FROM DUAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        OPEN resultado_cursor FOR
+            SELECT 'Error al insertar la categoría' AS mensaje FROM DUAL;
+END cursor_insertar_categoria;
+
+
+CREATE OR REPLACE PROCEDURE cursor_leer_categoria(
+    p_id_categoria IN CATEGORIA.id_Categoria%TYPE,
+    resultado_cursor OUT SYS_REFCURSOR
+)
+AS
+BEGIN
+    OPEN resultado_cursor FOR
+        SELECT descripcion
+        FROM CATEGORIA
+        WHERE id_Categoria = p_id_categoria;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        OPEN resultado_cursor FOR
+            SELECT 'No se encontró la categoría' AS mensaje FROM DUAL;
+    WHEN OTHERS THEN
+        RAISE;
+END cursor_leer_categoria;
+
+
+CREATE OR REPLACE PROCEDURE cursor_actualizar_categoria(
+    p_id_categoria IN CATEGORIA.id_Categoria%TYPE,
+    p_descripcion IN CATEGORIA.descripcion%TYPE,
+    resultado_cursor OUT SYS_REFCURSOR
+)
+AS
+BEGIN
+    UPDATE CATEGORIA
+    SET descripcion = p_descripcion
+    WHERE id_Categoria = p_id_categoria;
+    COMMIT;
+
+    OPEN resultado_cursor FOR
+        SELECT 'Categoría actualizada correctamente' AS mensaje FROM DUAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        OPEN resultado_cursor FOR
+            SELECT 'Error al actualizar la categoría' AS mensaje FROM DUAL;
+END cursor_actualizar_categoria;
+
+
+CREATE OR REPLACE PROCEDURE cursor_eliminar_categoria(
+    p_id_categoria IN CATEGORIA.id_Categoria%TYPE,
+    resultado_cursor OUT SYS_REFCURSOR
+)
+AS
+BEGIN
+    DELETE FROM CATEGORIA
+    WHERE id_Categoria = p_id_categoria;
+    COMMIT;
+
+    OPEN resultado_cursor FOR
+        SELECT 'Categoría eliminada correctamente' AS mensaje FROM DUAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        OPEN resultado_cursor FOR
+            SELECT 'Error al eliminar la categoría' AS mensaje FROM DUAL;
+END cursor_eliminar_categoria;
 
 --------------------------------------------------------------
 --------------------------------------------------------------
@@ -883,6 +1082,879 @@ END obtener_ultima_venta_realizada;
 --------------------------------------------------------------
 --------------------------------------------------------------
 
+--Paquetes
+
+--1. Paquete de gestión de clientes
+CREATE OR REPLACE PACKAGE cliente_pkg AS
+    PROCEDURE agregar_cliente(
+        p_nombre IN VARCHAR2,
+        p_apellido IN VARCHAR2,
+        p_email IN VARCHAR2
+    );
+    
+    PROCEDURE actualizar_cliente(
+        p_id_cliente IN NUMBER,
+        p_nombre IN VARCHAR2,
+        p_apellido IN VARCHAR2,
+        p_email IN VARCHAR2
+    );
+
+    PROCEDURE eliminar_cliente(
+        p_id_cliente IN NUMBER
+    );
+
+    FUNCTION buscar_cliente_por_id(
+        p_id_cliente IN NUMBER
+    ) RETURN SYS_REFCURSOR;
+
+    FUNCTION buscar_cliente_por_email(
+        p_email IN VARCHAR2
+    ) RETURN SYS_REFCURSOR;
+END cliente_pkg;
+
+CREATE OR REPLACE PACKAGE BODY cliente_pkg AS
+    PROCEDURE agregar_cliente(
+        p_nombre IN VARCHAR2,
+        p_apellido IN VARCHAR2,
+        p_email IN VARCHAR2
+    ) IS
+    BEGIN
+        INSERT INTO CLIENTES (nombre, apellido, correo) VALUES (p_nombre, p_apellido, p_email);
+        COMMIT;
+    END agregar_cliente;
+
+    PROCEDURE actualizar_cliente(
+        p_id_cliente IN NUMBER,
+        p_nombre IN VARCHAR2,
+        p_apellido IN VARCHAR2,
+        p_email IN VARCHAR2
+    ) IS
+    BEGIN
+        UPDATE CLIENTES SET nombre = p_nombre, apellido = p_apellido, correo = p_email
+        WHERE id_Cliente = p_id_cliente;
+        COMMIT;
+    END actualizar_cliente;
+
+    PROCEDURE eliminar_cliente(
+        p_id_cliente IN NUMBER
+    ) IS
+    BEGIN
+        DELETE FROM CLIENTES WHERE id_Cliente = p_id_cliente;
+        COMMIT;
+    END eliminar_cliente;
+
+    FUNCTION buscar_cliente_por_id(
+        p_id_cliente IN NUMBER
+    ) RETURN SYS_REFCURSOR IS
+        cliente_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN cliente_cursor FOR
+            SELECT * FROM CLIENTES WHERE id_Cliente = p_id_cliente;
+        RETURN cliente_cursor;
+    END buscar_cliente_por_id;
+
+    FUNCTION buscar_cliente_por_email(
+        p_email IN VARCHAR2
+    ) RETURN SYS_REFCURSOR IS
+        cliente_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN cliente_cursor FOR
+            SELECT * FROM CLIENTES WHERE correo = p_email;
+        RETURN cliente_cursor;
+    END buscar_cliente_por_email;
+END cliente_pkg;
+
+
+--2. Paquete de gestión de productos
+CREATE OR REPLACE PACKAGE producto_pkg AS
+    PROCEDURE agregar_producto(
+        p_nombre IN VARCHAR2,
+        p_precio IN NUMBER,
+        p_stock IN NUMBER
+    );
+
+    PROCEDURE actualizar_producto(
+        p_id_producto IN NUMBER,
+        p_nombre IN VARCHAR2,
+        p_precio IN NUMBER,
+        p_stock IN NUMBER
+    );
+
+    PROCEDURE eliminar_producto(
+        p_id_producto IN NUMBER
+    );
+
+    FUNCTION buscar_producto_por_id(
+        p_id_producto IN NUMBER
+    ) RETURN SYS_REFCURSOR;
+
+    FUNCTION buscar_producto_por_nombre(
+        p_nombre IN VARCHAR2
+    ) RETURN SYS_REFCURSOR;
+END producto_pkg;
+
+CREATE OR REPLACE PACKAGE BODY producto_pkg AS
+    PROCEDURE agregar_producto(
+        p_nombre IN VARCHAR2,
+        p_precio IN NUMBER,
+        p_stock IN NUMBER
+    ) IS
+    BEGIN
+        INSERT INTO PRODUCTOS (nombre, precio, cantidad) VALUES (p_nombre, p_precio, p_stock);
+        COMMIT;
+    END agregar_producto;
+
+    PROCEDURE actualizar_producto(
+        p_id_producto IN NUMBER,
+        p_nombre IN VARCHAR2,
+        p_precio IN NUMBER,
+        p_stock IN NUMBER
+    ) IS
+    BEGIN
+        UPDATE PRODUCTOS SET nombre = p_nombre, precio = p_precio, cantidad = p_stock
+        WHERE id_Producto = p_id_producto;
+        COMMIT;
+    END actualizar_producto;
+
+    PROCEDURE eliminar_producto(
+        p_id_producto IN NUMBER
+    ) IS
+    BEGIN
+        DELETE FROM PRODUCTOS WHERE id_Producto = p_id_producto;
+        COMMIT;
+    END eliminar_producto;
+
+    FUNCTION buscar_producto_por_id(
+        p_id_producto IN NUMBER
+    ) RETURN SYS_REFCURSOR IS
+        producto_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN producto_cursor FOR
+            SELECT * FROM PRODUCTOS WHERE id_Producto = p_id_producto;
+        RETURN producto_cursor;
+    END buscar_producto_por_id;
+
+    FUNCTION buscar_producto_por_nombre(
+        p_nombre IN VARCHAR2
+    ) RETURN SYS_REFCURSOR IS
+        producto_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN producto_cursor FOR
+            SELECT * FROM PRODUCTOS WHERE nombre = p_nombre;
+        RETURN producto_cursor;
+    END buscar_producto_por_nombre;
+END producto_pkg;
+
+
+--3. Paquete de gestión de ventas
+CREATE OR REPLACE PACKAGE venta_pkg AS
+    PROCEDURE realizar_venta(
+        p_id_cliente IN NUMBER,
+        p_id_producto IN NUMBER,
+        p_cantidad IN NUMBER
+    );
+
+    PROCEDURE calcular_total_venta(
+        p_id_venta IN NUMBER
+    );
+
+    PROCEDURE obtener_detalle_venta(
+        p_id_venta IN NUMBER
+    );
+END venta_pkg;
+
+CREATE OR REPLACE PACKAGE BODY venta_pkg AS
+    PROCEDURE realizar_venta(
+        p_id_cliente IN NUMBER,
+        p_id_producto IN NUMBER,
+        p_cantidad IN NUMBER
+    ) IS
+    BEGIN
+        -- Actualizar el stock del producto vendido
+        UPDATE PRODUCTOS
+        SET cantidad = cantidad - p_cantidad
+        WHERE id_Producto = p_id_producto;
+
+        -- Insertar la venta en la tabla VENTAS
+        INSERT INTO VENTAS (id_Cliente, fecha, total_Pagado)
+        VALUES (p_id_cliente, SYSDATE, NULL);
+
+        -- Obtener el ID de la venta recién insertada
+        DECLARE
+            v_id_venta NUMBER;
+        BEGIN
+            SELECT MAX(id_Venta) INTO v_id_venta FROM VENTAS;
+        
+            -- Insertar el detalle de la venta en VENTAS_DETALLE
+            INSERT INTO VENTAS_DETALLE (id_Venta, id_Producto, cantidad, precio_unitario)
+            VALUES (v_id_venta, p_id_producto, p_cantidad, (SELECT precio FROM PRODUCTOS WHERE id_Producto = p_id_producto));
+        
+            COMMIT;
+        END;
+    END realizar_venta;
+
+    PROCEDURE calcular_total_venta(
+        p_id_venta IN NUMBER
+    ) IS
+    BEGIN
+        -- Calcular el total de una venta
+        UPDATE VENTAS
+        SET total_Pagado = (SELECT SUM(cantidad * precio_unitario) FROM VENTAS_DETALLE WHERE id_Venta = p_id_venta)
+        WHERE id_Venta = p_id_venta;
+        
+        COMMIT;
+    END calcular_total_venta;
+
+    PROCEDURE obtener_detalle_venta(
+        p_id_venta IN NUMBER
+    ) IS
+    BEGIN
+        -- Obtener el detalle de una venta
+        FOR detalle IN (SELECT * FROM VENTAS_DETALLE WHERE id_Venta = p_id_venta) LOOP
+            DBMS_OUTPUT.PUT_LINE('ID Producto: ' || detalle.id_Producto || ', Cantidad: ' || detalle.cantidad || ', Precio unitario: ' || detalle.precio_unitario);
+        END LOOP;
+    END obtener_detalle_venta;
+END venta_pkg;
+
+
+--4. Paquete de gestión de proveedores
+CREATE OR REPLACE PACKAGE proveedor_pkg AS
+    PROCEDURE agregar_proveedor(
+        p_nombre IN VARCHAR2,
+        p_contacto IN VARCHAR2
+    );
+
+    PROCEDURE actualizar_proveedor(
+        p_id_proveedor IN NUMBER,
+        p_nombre IN VARCHAR2,
+        p_contacto IN VARCHAR2
+    );
+
+    PROCEDURE eliminar_proveedor(
+        p_id_proveedor IN NUMBER
+    );
+
+    FUNCTION buscar_proveedor_por_id(
+        p_id_proveedor IN NUMBER
+    ) RETURN SYS_REFCURSOR;
+
+    FUNCTION buscar_proveedor_por_nombre(
+        p_nombre IN VARCHAR2
+    ) RETURN SYS_REFCURSOR;
+END proveedor_pkg;
+
+CREATE OR REPLACE PACKAGE BODY proveedor_pkg AS
+    PROCEDURE agregar_proveedor(
+        p_nombre IN VARCHAR2,
+        p_contacto IN VARCHAR2
+    ) IS
+    BEGIN
+        INSERT INTO PROVEEDORES (nombre, contacto) VALUES (p_nombre, p_contacto);
+        COMMIT;
+    END agregar_proveedor;
+
+    PROCEDURE actualizar_proveedor(
+        p_id_proveedor IN NUMBER,
+        p_nombre IN VARCHAR2,
+        p_contacto IN VARCHAR2
+    ) IS
+    BEGIN
+        UPDATE PROVEEDORES SET nombre = p_nombre, contacto = p_contacto
+        WHERE id_Proveedor = p_id_proveedor;
+        COMMIT;
+    END actualizar_proveedor;
+
+    PROCEDURE eliminar_proveedor(
+        p_id_proveedor IN NUMBER
+    ) IS
+    BEGIN
+        DELETE FROM PROVEEDORES WHERE id_Proveedor = p_id_proveedor;
+        COMMIT;
+    END eliminar_proveedor;
+
+    FUNCTION buscar_proveedor_por_id(
+        p_id_proveedor IN NUMBER
+    ) RETURN SYS_REFCURSOR IS
+        proveedor_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN proveedor_cursor FOR
+            SELECT * FROM PROVEEDORES WHERE id_Proveedor = p_id_proveedor;
+        RETURN proveedor_cursor;
+    END buscar_proveedor_por_id;
+
+    FUNCTION buscar_proveedor_por_nombre(
+        p_nombre IN VARCHAR2
+    ) RETURN SYS_REFCURSOR IS
+        proveedor_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN proveedor_cursor FOR
+            SELECT * FROM PROVEEDORES WHERE nombre = p_nombre;
+        RETURN proveedor_cursor;
+    END buscar_proveedor_por_nombre;
+END proveedor_pkg;
+
+
+--5. Paquete de gestión de clientes
+
+CREATE OR REPLACE PACKAGE cliente_pkg AS
+    PROCEDURE agregar_cliente(
+        p_nombre IN VARCHAR2,
+        p_correo IN VARCHAR2
+    );
+
+    PROCEDURE actualizar_cliente(
+        p_id_cliente IN NUMBER,
+        p_nombre IN VARCHAR2,
+        p_correo IN VARCHAR2
+    );
+
+    PROCEDURE eliminar_cliente(
+        p_id_cliente IN NUMBER
+    );
+
+    FUNCTION buscar_cliente_por_id(
+        p_id_cliente IN NUMBER
+    ) RETURN SYS_REFCURSOR;
+
+    FUNCTION buscar_cliente_por_nombre(
+        p_nombre IN VARCHAR2
+    ) RETURN SYS_REFCURSOR;
+
+    FUNCTION buscar_cliente_por_correo(
+        p_correo IN VARCHAR2
+    ) RETURN SYS_REFCURSOR;
+END cliente_pkg;
+
+CREATE OR REPLACE PACKAGE BODY cliente_pkg AS
+    PROCEDURE agregar_cliente(
+        p_nombre IN VARCHAR2,
+        p_correo IN VARCHAR2
+    ) IS
+    BEGIN
+        INSERT INTO CLIENTES (nombre, correo) VALUES (p_nombre, p_correo);
+        COMMIT;
+    END agregar_cliente;
+
+    PROCEDURE actualizar_cliente(
+        p_id_cliente IN NUMBER,
+        p_nombre IN VARCHAR2,
+        p_correo IN VARCHAR2
+    ) IS
+    BEGIN
+        UPDATE CLIENTES SET nombre = p_nombre, correo = p_correo
+        WHERE id_Cliente = p_id_cliente;
+        COMMIT;
+    END actualizar_cliente;
+
+    PROCEDURE eliminar_cliente(
+        p_id_cliente IN NUMBER
+    ) IS
+    BEGIN
+        DELETE FROM CLIENTES WHERE id_Cliente = p_id_cliente;
+        COMMIT;
+    END eliminar_cliente;
+
+    FUNCTION buscar_cliente_por_id(
+        p_id_cliente IN NUMBER
+    ) RETURN SYS_REFCURSOR IS
+        cliente_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN cliente_cursor FOR
+            SELECT * FROM CLIENTES WHERE id_Cliente = p_id_cliente;
+        RETURN cliente_cursor;
+    END buscar_cliente_por_id;
+
+    FUNCTION buscar_cliente_por_nombre(
+        p_nombre IN VARCHAR2
+    ) RETURN SYS_REFCURSOR IS
+        cliente_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN cliente_cursor FOR
+            SELECT * FROM CLIENTES WHERE nombre = p_nombre;
+        RETURN cliente_cursor;
+    END buscar_cliente_por_nombre;
+
+    FUNCTION buscar_cliente_por_correo(
+        p_correo IN VARCHAR2
+    ) RETURN SYS_REFCURSOR IS
+        cliente_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN cliente_cursor FOR
+            SELECT * FROM CLIENTES WHERE correo = p_correo;
+        RETURN cliente_cursor;
+    END buscar_cliente_por_correo;
+END cliente_pkg;
+
+--6. Paquete de gestión de productos
+
+CREATE OR REPLACE PACKAGE producto_pkg AS
+    PROCEDURE agregar_producto(
+        p_nombre IN VARCHAR2,
+        p_precio IN NUMBER,
+        p_cantidad IN NUMBER
+    );
+
+    PROCEDURE actualizar_producto(
+        p_id_producto IN NUMBER,
+        p_nombre IN VARCHAR2,
+        p_precio IN NUMBER,
+        p_cantidad IN NUMBER
+    );
+
+    PROCEDURE eliminar_producto(
+        p_id_producto IN NUMBER
+    );
+
+    FUNCTION buscar_producto_por_id(
+        p_id_producto IN NUMBER
+    ) RETURN SYS_REFCURSOR;
+
+    FUNCTION buscar_producto_por_nombre(
+        p_nombre IN VARCHAR2
+    ) RETURN SYS_REFCURSOR;
+END producto_pkg;
+
+CREATE OR REPLACE PACKAGE BODY producto_pkg AS
+    PROCEDURE agregar_producto(
+        p_nombre IN VARCHAR2,
+        p_precio IN NUMBER,
+        p_cantidad IN NUMBER
+    ) IS
+    BEGIN
+        INSERT INTO PRODUCTOS (nombre, precio, cantidad) VALUES (p_nombre, p_precio, p_cantidad);
+        COMMIT;
+    END agregar_producto;
+
+    PROCEDURE actualizar_producto(
+        p_id_producto IN NUMBER,
+        p_nombre IN VARCHAR2,
+        p_precio IN NUMBER,
+        p_cantidad IN NUMBER
+    ) IS
+    BEGIN
+        UPDATE PRODUCTOS SET nombre = p_nombre, precio = p_precio, cantidad = p_cantidad
+        WHERE id_Producto = p_id_producto;
+        COMMIT;
+    END actualizar_producto;
+
+    PROCEDURE eliminar_producto(
+        p_id_producto IN NUMBER
+    ) IS
+    BEGIN
+        DELETE FROM PRODUCTOS WHERE id_Producto = p_id_producto;
+        COMMIT;
+    END eliminar_producto;
+
+    FUNCTION buscar_producto_por_id(
+        p_id_producto IN NUMBER
+    ) RETURN SYS_REFCURSOR IS
+        producto_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN producto_cursor FOR
+            SELECT * FROM PRODUCTOS WHERE id_Producto = p_id_producto;
+        RETURN producto_cursor;
+    END buscar_producto_por_id;
+
+    FUNCTION buscar_producto_por_nombre(
+        p_nombre IN VARCHAR2
+    ) RETURN SYS_REFCURSOR IS
+        producto_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN producto_cursor FOR
+            SELECT * FROM PRODUCTOS WHERE nombre = p_nombre;
+        RETURN producto_cursor;
+    END buscar_producto_por_nombre;
+END producto_pkg;
+
+
+--7. Paquete de gestión de ventas
+
+CREATE OR REPLACE PACKAGE venta_pkg AS
+    PROCEDURE registrar_venta(
+        p_id_cliente IN NUMBER,
+        p_fecha IN DATE,
+        p_total_pagado IN NUMBER
+    );
+
+    PROCEDURE agregar_detalle_venta(
+        p_id_venta IN NUMBER,
+        p_id_producto IN NUMBER,
+        p_cantidad IN NUMBER,
+        p_precio_unitario IN NUMBER
+    );
+
+    FUNCTION buscar_ventas_cliente(
+        p_id_cliente IN NUMBER
+    ) RETURN SYS_REFCURSOR;
+
+    FUNCTION buscar_detalle_venta(
+        p_id_venta IN NUMBER
+    ) RETURN SYS_REFCURSOR;
+END venta_pkg;
+
+
+CREATE OR REPLACE PACKAGE BODY venta_pkg AS
+    PROCEDURE registrar_venta(
+        p_id_cliente IN NUMBER,
+        p_fecha IN DATE,
+        p_total_pagado IN NUMBER
+    ) IS
+    BEGIN
+        INSERT INTO VENTAS (id_Cliente, fecha, total_Pagado) VALUES (p_id_cliente, p_fecha, p_total_pagado);
+        COMMIT;
+    END registrar_venta;
+
+    PROCEDURE agregar_detalle_venta(
+        p_id_venta IN NUMBER,
+        p_id_producto IN NUMBER,
+        p_cantidad IN NUMBER,
+        p_precio_unitario IN NUMBER
+    ) IS
+    BEGIN
+        INSERT INTO VENTAS_DETALLE (id_Venta, id_Producto, cantidad, precio_unitario) VALUES (p_id_venta, p_id_producto, p_cantidad, p_precio_unitario);
+        COMMIT;
+    END agregar_detalle_venta;
+
+    FUNCTION buscar_ventas_cliente(
+        p_id_cliente IN NUMBER
+    ) RETURN SYS_REFCURSOR IS
+        ventas_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN ventas_cursor FOR
+            SELECT * FROM VENTAS WHERE id_Cliente = p_id_cliente;
+        RETURN ventas_cursor;
+    END buscar_ventas_cliente;
+
+    FUNCTION buscar_detalle_venta(
+        p_id_venta IN NUMBER
+    ) RETURN SYS_REFCURSOR IS
+        detalle_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN detalle_cursor FOR
+            SELECT * FROM VENTAS_DETALLE WHERE id_Venta = p_id_venta;
+        RETURN detalle_cursor;
+    END buscar_detalle_venta;
+END venta_pkg;
+
+
+--8. Paquete de gestión de proveedore
+
+CREATE OR REPLACE PACKAGE proveedor_pkg AS
+    PROCEDURE agregar_proveedor(
+        p_nombre IN VARCHAR2,
+        p_direccion IN VARCHAR2,
+        p_telefono IN VARCHAR2
+    );
+
+    PROCEDURE actualizar_proveedor(
+        p_id_proveedor IN NUMBER,
+        p_nombre IN VARCHAR2,
+        p_direccion IN VARCHAR2,
+        p_telefono IN VARCHAR2
+    );
+
+    PROCEDURE eliminar_proveedor(
+        p_id_proveedor IN NUMBER
+    );
+
+    FUNCTION buscar_proveedor_por_id(
+        p_id_proveedor IN NUMBER
+    ) RETURN SYS_REFCURSOR;
+
+    FUNCTION buscar_proveedor_por_nombre(
+        p_nombre IN VARCHAR2
+    ) RETURN SYS_REFCURSOR;
+
+    FUNCTION buscar_proveedor_por_telefono(
+        p_telefono IN VARCHAR2
+    ) RETURN SYS_REFCURSOR;
+END proveedor_pkg;
+
+CREATE OR REPLACE PACKAGE BODY proveedor_pkg AS
+    PROCEDURE agregar_proveedor(
+        p_nombre IN VARCHAR2,
+        p_direccion IN VARCHAR2,
+        p_telefono IN VARCHAR2
+    ) IS
+    BEGIN
+        INSERT INTO PROVEEDORES (nombre, direccion, telefono) VALUES (p_nombre, p_direccion, p_telefono);
+        COMMIT;
+    END agregar_proveedor;
+
+    PROCEDURE actualizar_proveedor(
+        p_id_proveedor IN NUMBER,
+        p_nombre IN VARCHAR2,
+        p_direccion IN VARCHAR2,
+        p_telefono IN VARCHAR2
+    ) IS
+    BEGIN
+        UPDATE PROVEEDORES SET nombre = p_nombre, direccion = p_direccion, telefono = p_telefono
+        WHERE id_Proveedor = p_id_proveedor;
+        COMMIT;
+    END actualizar_proveedor;
+
+    PROCEDURE eliminar_proveedor(
+        p_id_proveedor IN NUMBER
+    ) IS
+    BEGIN
+        DELETE FROM PROVEEDORES WHERE id_Proveedor = p_id_proveedor;
+        COMMIT;
+    END eliminar_proveedor;
+
+    FUNCTION buscar_proveedor_por_id(
+        p_id_proveedor IN NUMBER
+    ) RETURN SYS_REFCURSOR IS
+        proveedor_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN proveedor_cursor FOR
+            SELECT * FROM PROVEEDORES WHERE id_Proveedor = p_id_proveedor;
+        RETURN proveedor_cursor;
+    END buscar_proveedor_por_id;
+
+    FUNCTION buscar_proveedor_por_nombre(
+        p_nombre IN VARCHAR2
+    ) RETURN SYS_REFCURSOR IS
+        proveedor_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN proveedor_cursor FOR
+            SELECT * FROM PROVEEDORES WHERE nombre = p_nombre;
+        RETURN proveedor_cursor;
+    END buscar_proveedor_por_nombre;
+
+    FUNCTION buscar_proveedor_por_telefono(
+        p_telefono IN VARCHAR2
+    ) RETURN SYS_REFCURSOR IS
+        proveedor_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN proveedor_cursor FOR
+            SELECT * FROM PROVEEDORES WHERE telefono = p_telefono;
+        RETURN proveedor_cursor;
+    END buscar_proveedor_por_telefono;
+END proveedor_pkg;
+
+
+--9. Paquete de gestión de clientes
+
+CREATE OR REPLACE PACKAGE cliente_pkg AS
+    PROCEDURE agregar_cliente(
+        p_nombre IN VARCHAR2,
+        p_apellido IN VARCHAR2,
+        p_correo IN VARCHAR2,
+        p_telefono IN VARCHAR2
+    );
+
+    PROCEDURE actualizar_cliente(
+        p_id_cliente IN NUMBER,
+        p_nombre IN VARCHAR2,
+        p_apellido IN VARCHAR2,
+        p_correo IN VARCHAR2,
+        p_telefono IN VARCHAR2
+    );
+
+    PROCEDURE eliminar_cliente(
+        p_id_cliente IN NUMBER
+    );
+
+    FUNCTION buscar_cliente_por_id(
+        p_id_cliente IN NUMBER
+    ) RETURN SYS_REFCURSOR;
+
+    FUNCTION buscar_cliente_por_correo(
+        p_correo IN VARCHAR2
+    ) RETURN SYS_REFCURSOR;
+
+    FUNCTION buscar_cliente_por_telefono(
+        p_telefono IN VARCHAR2
+    ) RETURN SYS_REFCURSOR;
+END cliente_pkg;
+
+CREATE OR REPLACE PACKAGE BODY cliente_pkg AS
+    PROCEDURE agregar_cliente(
+        p_nombre IN VARCHAR2,
+        p_apellido IN VARCHAR2,
+        p_correo IN VARCHAR2,
+        p_telefono IN VARCHAR2
+    ) IS
+    BEGIN
+        INSERT INTO CLIENTES (nombre, apellido, correo, telefono) VALUES (p_nombre, p_apellido, p_correo, p_telefono);
+        COMMIT;
+    END agregar_cliente;
+
+    PROCEDURE actualizar_cliente(
+        p_id_cliente IN NUMBER,
+        p_nombre IN VARCHAR2,
+        p_apellido IN VARCHAR2,
+        p_correo IN VARCHAR2,
+        p_telefono IN VARCHAR2
+    ) IS
+    BEGIN
+        UPDATE CLIENTES SET nombre = p_nombre, apellido = p_apellido, correo = p_correo, telefono = p_telefono
+        WHERE id_Cliente = p_id_cliente;
+        COMMIT;
+    END actualizar_cliente;
+
+    PROCEDURE eliminar_cliente(
+        p_id_cliente IN NUMBER
+    ) IS
+    BEGIN
+        DELETE FROM CLIENTES WHERE id_Cliente = p_id_cliente;
+        COMMIT;
+    END eliminar_cliente;
+
+    FUNCTION buscar_cliente_por_id(
+        p_id_cliente IN NUMBER
+    ) RETURN SYS_REFCURSOR IS
+        cliente_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN cliente_cursor FOR
+            SELECT * FROM CLIENTES WHERE id_Cliente = p_id_cliente;
+        RETURN cliente_cursor;
+    END buscar_cliente_por_id;
+
+    FUNCTION buscar_cliente_por_correo(
+        p_correo IN VARCHAR2
+    ) RETURN SYS_REFCURSOR IS
+        cliente_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN cliente_cursor FOR
+            SELECT * FROM CLIENTES WHERE correo = p_correo;
+        RETURN cliente_cursor;
+    END buscar_cliente_por_correo;
+
+    FUNCTION buscar_cliente_por_telefono(
+        p_telefono IN VARCHAR2
+    ) RETURN SYS_REFCURSOR IS
+        cliente_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN cliente_cursor FOR
+            SELECT * FROM CLIENTES WHERE telefono = p_telefono;
+        RETURN cliente_cursor;
+    END buscar_cliente_por_telefono;
+END cliente_pkg;
+
+
+--10. Paquete de gestión de empleados
+
+CREATE OR REPLACE PACKAGE empleado_pkg AS
+    PROCEDURE agregar_empleado(
+        p_nombre IN VARCHAR2,
+        p_apellido IN VARCHAR2,
+        p_correo IN VARCHAR2,
+        p_telefono IN VARCHAR2,
+        p_puesto IN VARCHAR2
+    );
+
+    PROCEDURE actualizar_empleado(
+        p_id_empleado IN NUMBER,
+        p_nombre IN VARCHAR2,
+        p_apellido IN VARCHAR2,
+        p_correo IN VARCHAR2,
+        p_telefono IN VARCHAR2,
+        p_puesto IN VARCHAR2
+    );
+
+    PROCEDURE eliminar_empleado(
+        p_id_empleado IN NUMBER
+    );
+
+    FUNCTION buscar_empleado_por_id(
+        p_id_empleado IN NUMBER
+    ) RETURN SYS_REFCURSOR;
+
+    FUNCTION buscar_empleado_por_correo(
+        p_correo IN VARCHAR2
+    ) RETURN SYS_REFCURSOR;
+
+    FUNCTION buscar_empleado_por_telefono(
+        p_telefono IN VARCHAR2
+    ) RETURN SYS_REFCURSOR;
+
+    FUNCTION buscar_empleado_por_puesto(
+        p_puesto IN VARCHAR2
+    ) RETURN SYS_REFCURSOR;
+END empleado_pkg;
+
+
+CREATE OR REPLACE PACKAGE BODY empleado_pkg AS
+    PROCEDURE agregar_empleado(
+        p_nombre IN VARCHAR2,
+        p_apellido IN VARCHAR2,
+        p_correo IN VARCHAR2,
+        p_telefono IN VARCHAR2,
+        p_puesto IN VARCHAR2
+    ) IS
+    BEGIN
+        INSERT INTO EMPLEADOS (nombre, apellido, correo, telefono, puesto) VALUES (p_nombre, p_apellido, p_correo, p_telefono, p_puesto);
+        COMMIT;
+    END agregar_empleado;
+
+    PROCEDURE actualizar_empleado(
+        p_id_empleado IN NUMBER,
+        p_nombre IN VARCHAR2,
+        p_apellido IN VARCHAR2,
+        p_correo IN VARCHAR2,
+        p_telefono IN VARCHAR2,
+        p_puesto IN VARCHAR2
+    ) IS
+    BEGIN
+        UPDATE EMPLEADOS SET nombre = p_nombre, apellido = p_apellido, correo = p_correo, telefono = p_telefono, puesto = p_puesto
+        WHERE id_Empleado = p_id_empleado;
+        COMMIT;
+    END actualizar_empleado;
+
+    PROCEDURE eliminar_empleado(
+        p_id_empleado IN NUMBER
+    ) IS
+    BEGIN
+        DELETE FROM EMPLEADOS WHERE id_Empleado = p_id_empleado;
+        COMMIT;
+    END eliminar_empleado;
+
+    FUNCTION buscar_empleado_por_id(
+        p_id_empleado IN NUMBER
+    ) RETURN SYS_REFCURSOR IS
+        empleado_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN empleado_cursor FOR
+            SELECT * FROM EMPLEADOS WHERE id_Empleado = p_id_empleado;
+        RETURN empleado_cursor;
+    END buscar_empleado_por_id;
+
+    FUNCTION buscar_empleado_por_correo(
+        p_correo IN VARCHAR2
+    ) RETURN SYS_REFCURSOR IS
+        empleado_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN empleado_cursor FOR
+            SELECT * FROM EMPLEADOS WHERE correo = p_correo;
+        RETURN empleado_cursor;
+    END buscar_empleado_por_correo;
+
+    FUNCTION buscar_empleado_por_telefono(
+        p_telefono IN VARCHAR2
+    ) RETURN SYS_REFCURSOR IS
+        empleado_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN empleado_cursor FOR
+            SELECT * FROM EMPLEADOS WHERE telefono = p_telefono;
+        RETURN empleado_cursor;
+    END buscar_empleado_por_telefono;
+
+    FUNCTION buscar_empleado_por_puesto(
+        p_puesto IN VARCHAR2
+    ) RETURN SYS_REFCURSOR IS
+        empleado_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN empleado_cursor FOR
+            SELECT * FROM EMPLEADOS WHERE puesto = p_puesto;
+        RETURN empleado_cursor;
+    END buscar_empleado_por_puesto;
+END empleado_pkg;
+
+--------------------------------------------------------------
+--------------------------------------------------------------
+--------------------------------------------------------------
+--------------------------------------------------------------
 -- Triggers
 
 CREATE OR REPLACE TRIGGER actualizar_stock_venta
@@ -923,6 +1995,22 @@ FOR EACH ROW
 BEGIN
     INSERT INTO AUDITORIA_ESTADO_PRODUCTO (id_producto, estado_anterior, estado_nuevo, fecha_actualizacion)
     VALUES (:OLD.id_Producto, :OLD.estado, :NEW.estado, SYSTIMESTAMP);
+END;
+
+CREATE OR REPLACE TRIGGER notificar_bajo_stock
+AFTER INSERT ON VENTAS_DETALLE
+FOR EACH ROW
+DECLARE
+    v_stock_minimo NUMBER := 10; -- Umbral de stock mínimo
+    v_stock_actual NUMBER;
+BEGIN
+    SELECT cantidad INTO v_stock_actual
+    FROM PRODUCTOS
+    WHERE id_Producto = :NEW.id_Producto;
+
+    IF v_stock_actual < v_stock_minimo THEN
+        DBMS_OUTPUT.PUT_LINE('¡Alerta! Stock del producto ' || :NEW.id_Producto || ' está por debajo del umbral mínimo.');
+    END IF;
 END;
 ----------------------------------------------------------
 ----------------------------------------------------------
